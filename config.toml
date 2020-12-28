@@ -1,0 +1,48 @@
+
+# This is the configuration file used to build the documentation.
+
+[site]
+title = "Apogee SSG Demo"
+
+[content]
+path = "./content/"
+exclude = [""]
+
+[static]
+path = "./static"
+output = ""
+copy = true
+
+[handlers.markdown]
+extensions = [".md"]
+handler = "./handlers/markdown.ts"
+
+#[handlers.markdown2]
+#extensions = [".magic.md"]
+#format = 2
+#handler = "./handlers/markdown.js"
+#
+#[handlers.image]
+#extensions = [".png", ".jpg"]
+#handler = "./handlers/image.js"
+
+# $CONTENT_ROOT/falcon9.png
+#
+# /falcon9
+#
+# /rockets
+
+[transform]
+operations = [
+  "media-metadata-read",
+  "media-copy",
+  "media-compress",
+  "media-thumbnail",
+  
+  "tag-generate",
+  
+  "@render",
+]
+
+[output]
+path = "dist"
