@@ -1,0 +1,185 @@
+
+* {
+  margin: 0;
+  padding: 0;
+
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+
+  background: transparent;
+  border: none;
+  outline: none;
+
+  text-decoration: inherit;
+  text-transform: inherit;
+
+  color: inherit;
+  
+  text-align: unset;
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  padding: 0 1em;
+}
+
+body {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 42em;
+  padding: 0 1rem;
+
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
+
+  background-color: #f8f8f8;
+
+  color: #333;
+}
+
+/* Header styles */
+
+.text * + h1,
+.text * + h2,
+.text * + h3,
+.text * + h4,
+.text * + h5,
+.text * + h6 {
+  margin-top: 1.5em;
+}
+
+.text h1,
+.text h2,
+.text h3,
+.text h4,
+.text h5,
+.text h6 {
+  margin-bottom: 0.75em;
+}
+
+.text h1::before,
+.text h2::before,
+.text h3::before,
+.text h4::before,
+.text h5::before,
+.text h6::before {
+  content: '#';
+  opacity: 0.25;
+
+  width: 2rem;
+
+  display: inline-block;
+}
+
+.text h1 {
+  font-size: 1.75em;
+  font-weight: bold;
+}
+
+.text h2 {
+  font-size: 1.75em;
+}
+
+.text h3 {
+  font-size: 1.65em;
+  color: #888;
+}
+
+.text hr {
+  border-top: 2px solid #888;
+  
+  height: 0;
+  width: 100%;
+
+  margin: 1rem 0;
+}
+
+/* Paragraph spacing */
+.text p + p {
+  margin-top: 0.5em;
+}
+
+.text code {
+  font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
+}
+
+.text ul,
+.text ol {
+  margin: 1em 0;
+  margin-left: 2em;
+}
+
+.text a {
+  color: #38f;
+}
+
+.text a:hover {
+  text-decoration: underline;
+}
+
+/* Page header */
+.page-header {
+  color: #38f;
+  font-weight: bold;
+  
+  border-radius: 0.5em;
+  border: 2px solid #38f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 12px 32px rgba(0, 0, 0, 0.1);
+  
+  padding: 1em 2em;
+  margin: 2em -1em;
+
+  display: flex;
+  align-items: center;
+
+  flex-wrap: wrap;
+}
+
+.page-header__title {
+  font-size: 2em;
+}
+
+.page-header__about {
+  font-size: 1.25em;
+  margin-left: auto;
+}
+
+.page-header a:hover {
+  text-decoration: underline;
+}
+
+/* */
+
+.page-main {
+  flex: 1;
+}
+
+/* */
+
+.page-footer {
+  color: #aaa;
+  font-size: 0.8em;
+
+  padding: 2em 0;
+
+  display: flex;
+  align-items: center;
+}
+
+.page-footer__generation-date code {
+  font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
+  font-weight: bold;
+}
