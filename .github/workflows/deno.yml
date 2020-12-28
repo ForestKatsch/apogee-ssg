@@ -38,5 +38,12 @@ jobs:
      # - name: Run Tests
      #   run: deno test -A --unstable
 
-      - name: Run Tests
+      - name: Build Output
         run: deno run -A --unstable src/main.ts
+        
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+
