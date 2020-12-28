@@ -5,8 +5,8 @@ Highly configurable and scriptable static site generator.
 
 Features:
 
-* Configurable at every step of the way with custom `ContentHandler`s (written in JS, and with full access to the Apogee instance at runtime.)
-* No template engines! We already have a powerful template engine that can run arbitrary code. It's called JavaScript.
+* Configurable at every step of the way with custom `ContentHandler`s (written in TS or JS, and with full access to the Apogee instance at runtime.)
+* No template engines! We already have a powerful template engine that can run arbitrary code. It's called JavaScript (or TypeScript, if you prefer.)
 * Automatic content watching and recompilation (still WIP.)
 
 ## Operation
