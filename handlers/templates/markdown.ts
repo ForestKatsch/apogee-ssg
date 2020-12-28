@@ -1,7 +1,7 @@
 
 import marked from 'https://cdn.skypack.dev/marked@1.2.7';
-import {unsafe} from '../../src/index.ts';
+import {TemplateResult, unsafe} from '../../src/index.ts';
 
-export function markdown(md: string): string {
+export function markdown(md: string): TemplateResult {
   return unsafe(marked(md));
 }
