@@ -169,10 +169,14 @@ export class Site {
       let handlerConfig = this.config.handlers[handlerName];
       
       let handlerModulePath = handlerConfig.handler;
+      handlerModulePath = 'file://' + path.resolve(configRoot, handlerModulePath);
+    
       let extensions = handlerConfig.extensions;
       let options = handlerConfig.options || {};
+      
+      this.log.debug(`importing handler '${handlerName}' from '${handlerModulePath}'`);
 
-      let handler = new (await import(path.resolve(configRoot, handlerModulePath))).default(this, handlerName, options, extensions);
+      let handler = new (await import(handlerModulePath)).default(this, handlerName, options, extensions);
 
       this.handlers.add(handler);
     }
