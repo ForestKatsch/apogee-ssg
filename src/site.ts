@@ -8,7 +8,7 @@ import _ from 'https://cdn.skypack.dev/lodash@4.17.19';
 import {Logger, ConsoleTransport} from './util/log.ts';
 import {ApogeeError} from './error.ts';
 
-import {Page} from './page.ts';
+import {Page, PageCriteria} from './page.ts';
 
 import {ContentHandler, ContentHandlerWrangler} from './handler.ts';
 
@@ -119,6 +119,52 @@ export class Site {
     return path.join(this.outputRoot, this.config.static.output);
   }
 
+  // Returns a list of pages that match `criteria`.
+  getPages(criteria?: PageCriteria): Page[] {
+    let pages = [...this.pages.values()]
+                  .sort((a, b) => {
+                    if(a.meta.publishDate.getTime() < b.meta.publishDate.getTime()) {
+                      return 1;
+                    } else if(a.meta.publishDate.getTime() > b.meta.publishDate.getTime()) {
+                      return -1;
+                    } else {
+                      return 0;
+                    }
+                  })
+                  .filter((page) => !page.meta.static);
+
+    if(criteria) {
+      if(criteria.include) {
+        pages = pages.filter((page) => page.matchesFilter(criteria.include));
+      }
+      
+      if(criteria.exclude) {
+        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude));
+      }
+    }
+    
+    return pages;
+  }
+
+  getPage(path: string): Page {
+    if(!this.pages.has(path)) {
+      throw new ApogeeError(`no page with path '${path}'`);
+    }
+    return this.pages.get(path);
+  }
+
+  getPageFrom(page: Page, pagePath: string): Page {
+    return this.getPage(path.resolve(path.join(page.path, '/'), pagePath));
+  }
+
+  getHandler(handlerName: string): ContentHandler {
+    if(!this.handlers.has(handlerName)) {
+      throw new ApogeeError(`cannot find handler named '${handlerName}' (is it defined in the site configuration?)`);
+    }
+
+    return this.handlers.get(handlerName);
+  }
+
   // Loads a TOML config from `configFilename` and applies it to the config object.
   async loadConfig(configFilename: string) {
     const configRoot = path.dirname(configFilename);
@@ -173,7 +219,7 @@ export class Site {
     
       let extensions = handlerConfig.extensions;
       let options = handlerConfig.options || {};
-      
+
       this.log.debug(`importing handler '${handlerName}' from '${handlerModulePath}'`);
 
       let handler = new (await import(handlerModulePath)).default(this, handlerName, options, extensions);
@@ -283,7 +329,7 @@ export class Site {
   async copyStaticFile(filename: string): Promise<void> {
     let destinationFilename = path.resolve(this.staticOutputRoot, path.relative(this.staticRoot, filename));
 
-    ensureDir(path.dirname(destinationFilename));
+    await ensureDir(path.dirname(destinationFilename));
 
     return copy(filename, destinationFilename, {overwrite: true});
   }
@@ -334,10 +380,14 @@ export class Site {
   async transform(operation?: string) {
 
     if(!operation) {
+      await this.transform('@start');
+      
       for(let operationName of this.transformOperations) {
         await this.transform(operationName);
       }
 
+      await this.transform('@end');
+      
       return;
     }
 
@@ -358,8 +408,8 @@ export class Site {
   // # Rendering pages
   //
 
-  async renderPage(page: Page, variant: string): Promise<string> {
-    return await page.handler._render(page, variant);
+  renderPage(page: Page, variant: string, data?: any): string {
+    return page.handler._render(page, variant, data);
   }
 
   async outputPage(page: Page): Promise<void> {

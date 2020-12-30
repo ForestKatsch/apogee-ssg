@@ -20,6 +20,8 @@ type PageMetadata = {
   draft: boolean;
 
   tags: string[];
+
+  static: boolean;
 };
 
 const DEFAULT_METADATA: PageMetadata = {
@@ -32,8 +34,21 @@ const DEFAULT_METADATA: PageMetadata = {
   
   draft: false,
 
-  tags: []
+  tags: [],
+
+  static: false
 };
+
+type PageCriteriaFilter = {
+  tags: string[]
+};
+
+type PageCriteria = {
+  include?: PageCriteriaFilter,
+  exclude?: PageCriteriaFilter
+};
+
+// # Page
 
 export class Page {
 
@@ -53,8 +68,21 @@ export class Page {
     return _.merge(
       {},
       DEFAULT_METADATA,
+      this.handler.meta,
       this._meta
     );
+  }
+
+  get tags(): string[] {
+    return this.meta.tags;
+  }
+
+  addTag(tag: string) {
+    this._meta.tags.push(tag);
+  }
+
+  hasTag(tag: string): boolean {
+    return this.tags.indexOf(tag) >= 0;
   }
 
   handler: ContentHandler;
@@ -81,6 +109,18 @@ export class Page {
     if(!path.isAbsolute(this.path)) {
       throw new ApogeeError(`page path '${this.path}' must be absolute`);
     }
+  }
+
+  // Matches if any filter matches.
+  matchesFilter(filter: PageCriteriaFilter): boolean {
+
+    for(let tag of filter.tags) {
+      if(this.tags.indexOf(tag) >= 0) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Returns `contentFilename` relative to `contentRoot`.
@@ -123,16 +163,28 @@ export class Page {
   static(filename: string): string {
     let pagePath = path.join('/', path.dirname(this.absoluteOutputPath));
     let staticPath = path.join('/', path.relative(this.site.outputRoot, this.site.staticOutputRoot), filename);
-    
-    return path.relative(pagePath, staticPath);
+
+    // Force static files to be not cached across compiles.
+    // This is BAD. Don't do this.
+    // TODO: fix this.
+    return path.relative(pagePath, staticPath) + '?gen=${Math.round(Date.now() / 1000)}';
   }
 
   // Given a path relative to the content root, returns the path relative to this page.
   link(filename: string): string {
-    let pagePath = path.join(path.dirname(this.absoluteOutputPath));
+    let pagePath = path.join('/', path.dirname(this.absoluteOutputPath));
     let staticPath = path.join('/', filename);
     
     return path.relative(pagePath, staticPath);
+  }
+
+  // Splits (and parses) metadata from `contents`.
+  splitFrontmatter() {
+    let [meta, contents] = this.contents.split('\n+++\n', 2);
+
+    this.contents = contents ?? '';
+    
+    this.parseMeta(meta);
   }
 
   parseMeta(meta: string) {
@@ -140,6 +192,14 @@ export class Page {
       this._meta = toml.parse(meta);
     } catch(err) {
       throw new ApogeeError(`could not parse metadata for page '${this.sourcePath}'; toml error at [${err.line}:${err.column}]: ${err.message}`);
+    }
+
+    if(this.meta.handler) {
+      this.site.log.debug(`page '${this.sourcePath}' requested to use handler '${this.meta.handler}'`);
+
+      this.handler = this.site.getHandler(this.meta.handler);
+      
+      this.handler.inheritPage(this);
     }
   }
 
@@ -160,8 +220,8 @@ export class Page {
   }
 
   // Renders a variant of this page and returns the output.
-  async render(variant: string): Promise<string> {
-    return await this.site.renderPage(this, variant);
+  render(variant: string, data?: any): string {
+    return this.site.renderPage(this, variant, data);
   }
 
   async output(): Promise<void> {

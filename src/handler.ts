@@ -6,17 +6,21 @@ import {ApogeeError} from './error.ts';
 
 import {Site} from './site.ts';
 import {Page} from './page.ts';
-import {TemplateResult, templateToString} from './template.ts';
+import {TemplateResult, templateToUnsafeString} from './template.ts';
 
 type GlobalTransformCallback = (operation: string) => Promise<any>;
 type TransformCallback = (page: Page, operation: string, data: any) => Promise<any>;
-type RenderCallback = (page: Page, variant: string) => Promise<TemplateResult>;
 
-export abstract class ContentHandler {
+type RenderCallback = (page: Page, variant: string, data: any) => TemplateResult;
+
+export class ContentHandler {
 
   site: Site;
 
   name: string;
+
+  // Extra metadata that's automatically set on every page.
+  meta: {[key: string]: string} = {};
 
   // A list of extensions that are handled by this handler.
   extensions: string[] = [];
@@ -40,13 +44,16 @@ export abstract class ContentHandler {
 
   async _register(): Promise<void> {
     // Always add the @render operation.
-    this.addTransformOperation('@render', async (page) => await this._render(page, '@page'));
+    this.addTransformOperation('@render', (page) => this._render(page, '@page').contents);
 
     await this.register();
   }
   
   async _unregister(): Promise<void> {
     await this.unregister();
+  }
+
+  inheritPage(page: Page) {
   }
 
   // These functions can (and should) be overridden by the individual content handlers.
@@ -82,13 +89,16 @@ export abstract class ContentHandler {
     this.site.log.warn(`content handler '${this.name}' (as set in site configuration) should override 'ingest'`);
   }
 
-  // Splits (and parses) metadata from `page.contents`.
-  splitFrontmatter(page: Page) {
-    let [meta, contents] = page.contents.split('\n+++\n', 2);
+  async loadMetadataFile(page: Page): Promise<void> {
+    try {
+      let meta = await Deno.readTextFile(page.absoluteMetadataFilename);
 
-    page.contents = contents;
-    
-    page.parseMeta(meta);
+      page.contents = meta;
+      
+      page.splitFrontmatter();
+    } catch(err) {
+      throw new ApogeeError(`could not read metadata file for '${page.sourcePath}' ('${page.absoluteMetadataFilename}')`, err);
+    }
   }
 
   async _transformGlobal(operation: string): Promise<void> {
@@ -100,10 +110,10 @@ export abstract class ContentHandler {
   // Transform
   async _transform(page: Page, operation: string): Promise<void> {
     if(this.transformOperations.has(operation)) {
-      page.contents = await (this.transformOperations.get(operation)!.call(this, page, operation, page.contents));
+      let results = await (this.transformOperations.get(operation)!.call(this, page, operation, page.contents));
 
-      if(page.contents === undefined) {
-        this.site.log.warn(`page contents are undefined after running transform operation '${this.name}' on '${page.sourcePath}'`);
+      if(results !== undefined) {
+        page.contents = results;
       }
     }
 
@@ -111,9 +121,10 @@ export abstract class ContentHandler {
   }
 
   // Render
-  async _render(page: Page, variant: string): Promise<string> {
+  _render(page: Page, variant: string, data?: any): string {
     if(this.renderVariants.has(variant)) {
-      return templateToString(await (this.renderVariants.get(variant)!.call(this, page, variant)));
+      let callback = this.renderVariants.get(variant)!;
+      return templateToUnsafeString(callback.call(this, page, variant, data));
     }
 
     this.site.log.warn(`content handler '${this.name}' has not set a render handler for the '${variant}' variant (used on '${page.sourcePath}')`)
@@ -137,7 +148,7 @@ export abstract class TextContentHandler extends ContentHandler {
   async _ingest(page: Page): Promise<void> {
     page.contents = await Deno.readTextFile(page.absoluteContentFilename);
 
-    this.splitFrontmatter(page);
+    page.splitFrontmatter();
   }
   
   async _output(page: Page): Promise<void> {
@@ -170,7 +181,7 @@ export class ContentHandlerWrangler {
   async add(handler: ContentHandler) {
 
     // Make sure to remove the old one.
-    if(this.handlers.has(handler.name)) {
+    if(this.has(handler.name)) {
       this.remove(handler.name);
     }
 
@@ -198,6 +209,14 @@ export class ContentHandlerWrangler {
     });
 
     await handler._register();
+  }
+
+  has(handlerName: string): boolean {
+    return this.handlers.has(handlerName);
+  }
+
+  get(handlerName: string): ContentHandler {
+    return this.handlers.get(handlerName);
   }
 
   async remove(handlerName: string) {

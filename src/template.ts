@@ -66,3 +66,7 @@ export function templateToString(template: TemplateResult): string {
     return '';
   }
 }
+
+export function templateToUnsafeString(template: TemplateResult): string {
+  return unsafe(templateToString(template));
+}
