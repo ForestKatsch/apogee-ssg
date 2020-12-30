@@ -25,6 +25,8 @@ type PageMetadata = {
   static: boolean;
 
   handler?: string;
+
+  [key: string]: any;
 };
 
 const DEFAULT_METADATA: PageMetadata = {
@@ -228,6 +230,9 @@ export class Page {
   }
 
   async output(): Promise<void> {
+    if(!this.meta.title) {
+      this.site.log.warn(`page '${this.sourcePath}' has no title`);
+    }
     await this.site.outputPage(this);
   }
   
