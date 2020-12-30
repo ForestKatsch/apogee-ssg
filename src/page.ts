@@ -170,7 +170,7 @@ export class Page {
     // Force static files to be not cached across compiles.
     // This is BAD. Don't do this.
     // TODO: fix this.
-    return path.relative(pagePath, staticPath) + '?gen=${Math.round(Date.now() / 1000)}';
+    return path.relative(pagePath, staticPath) + `?gen=${Math.round(Date.now() / 1000)}`;
   }
 
   // Given a path relative to the content root, returns the path relative to this page.
