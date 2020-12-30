@@ -14,7 +14,12 @@ import {ContentHandler, ContentHandlerWrangler} from './handler.ts';
 import {TemplateResult} from './template.ts';
 
 export type SiteMetadata = {
-  title: string
+  title: string;
+
+  // The URL of the site. Used for making absolute links.
+  // For example, a URL of 'https://example.com/my-blog/' will make an absolute link to the page '/posts/foo' resolve to
+  // 'https://example.com/my-blog/posts/foo'.
+  url: string;
 };
 
 // # Config
@@ -72,6 +77,7 @@ export class Site {
 
       site: {
         title: 'My Apogee Site',
+        url: ''
       },
 
       // The location of static files.
@@ -230,6 +236,14 @@ export class Site {
     }
 
     this.ensureTransformOperation('@render');
+
+    if(!this.config.site.url) {
+      this.log.warn(`site.url not set in configuration; absolute links will be incorrect`);
+    } else {
+      if(!this.config.site.url.endsWith('/')) {
+        this.config.site.url = this.config.site.url + '/';
+      }
+    }
   }
 
   //

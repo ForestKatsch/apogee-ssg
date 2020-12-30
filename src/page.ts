@@ -78,6 +78,10 @@ export class Page {
     );
   }
 
+  get title(): string {
+    return this.meta.title;
+  }
+
   get tags(): string[] {
     return this.meta.tags;
   }
@@ -176,10 +180,21 @@ export class Page {
   }
 
   // Given a path relative to the content root, returns the path relative to this page.
-  link(filename: string): string {
-    let pagePath = path.join('/', path.dirname(this.absoluteOutputPath));
-    let staticPath = path.join('/', filename);
-    
+  link(filename: string | Page, absolute: boolean = false): string {
+
+    if(filename instanceof Page) {
+      filename = filename.path;
+    }
+
+    let pagePath = path.dirname(this.absoluteOutputPath);
+    let staticPath = filename;
+
+    //console.log(pagePath, staticPath, path.relative(pagePath, staticPath));
+
+    if(absolute) {
+      return this.site.config.site.url + filename.replace(/^\//, '');
+    }
+
     return path.relative(pagePath, staticPath);
   }
 
