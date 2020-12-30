@@ -9,8 +9,9 @@ import {Logger, ConsoleTransport} from './util/log.ts';
 import {ApogeeError} from './error.ts';
 
 import {Page, PageCriteria} from './page.ts';
-
 import {ContentHandler, ContentHandlerWrangler} from './handler.ts';
+
+import {TemplateResult} from './template.ts';
 
 export type SiteMetadata = {
   title: string
@@ -135,11 +136,11 @@ export class Site {
 
     if(criteria) {
       if(criteria.include) {
-        pages = pages.filter((page) => page.matchesFilter(criteria.include));
+        pages = pages.filter((page) => page.matchesFilter(criteria.include!));
       }
       
       if(criteria.exclude) {
-        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude));
+        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude!));
       }
     }
     
@@ -150,7 +151,8 @@ export class Site {
     if(!this.pages.has(path)) {
       throw new ApogeeError(`no page with path '${path}'`);
     }
-    return this.pages.get(path);
+    
+    return this.pages.get(path)!;
   }
 
   getPageFrom(page: Page, pagePath: string): Page {
@@ -162,7 +164,7 @@ export class Site {
       throw new ApogeeError(`cannot find handler named '${handlerName}' (is it defined in the site configuration?)`);
     }
 
-    return this.handlers.get(handlerName);
+    return this.handlers.get(handlerName)!;
   }
 
   // Loads a TOML config from `configFilename` and applies it to the config object.
@@ -408,7 +410,7 @@ export class Site {
   // # Rendering pages
   //
 
-  renderPage(page: Page, variant: string, data?: any): string {
+  renderPage(page: Page, variant: string, data?: any): TemplateResult {
     return page.handler._render(page, variant, data);
   }
 

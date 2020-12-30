@@ -8,6 +8,7 @@ import {ApogeeError} from './error.ts';
 
 import {ContentHandler} from './handler.ts';
 import {Site} from './site.ts';
+import {TemplateResult} from './template.ts';
 
 type PageMetadata = {
   title: string;
@@ -22,6 +23,8 @@ type PageMetadata = {
   tags: string[];
 
   static: boolean;
+
+  handler?: string;
 };
 
 const DEFAULT_METADATA: PageMetadata = {
@@ -39,11 +42,11 @@ const DEFAULT_METADATA: PageMetadata = {
   static: false
 };
 
-type PageCriteriaFilter = {
+export type PageCriteriaFilter = {
   tags: string[]
 };
 
-type PageCriteria = {
+export type PageCriteria = {
   include?: PageCriteriaFilter,
   exclude?: PageCriteriaFilter
 };
@@ -193,7 +196,7 @@ export class Page {
     } catch(err) {
       throw new ApogeeError(`could not parse metadata for page '${this.sourcePath}'; toml error at [${err.line}:${err.column}]: ${err.message}`);
     }
-
+    
     if(this.meta.handler) {
       this.site.log.debug(`page '${this.sourcePath}' requested to use handler '${this.meta.handler}'`);
 
@@ -220,7 +223,7 @@ export class Page {
   }
 
   // Renders a variant of this page and returns the output.
-  render(variant: string, data?: any): string {
+  render(variant: string, data?: any): TemplateResult {
     return this.site.renderPage(this, variant, data);
   }
 

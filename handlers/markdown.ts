@@ -25,7 +25,7 @@ export default class MarkdownContentHandler extends TextContentHandler {
     this.site.createPageFromFilename(filename, this);
   }
   
-  async renderPage(page: Page): Promise<TemplateResult> {
+  renderPage(page: Page): TemplateResult {
     return htmlPage({
       page: page,
       

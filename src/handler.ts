@@ -6,7 +6,7 @@ import {ApogeeError} from './error.ts';
 
 import {Site} from './site.ts';
 import {Page} from './page.ts';
-import {TemplateResult, templateToUnsafeString} from './template.ts';
+import {TemplateResult, templateToUnsafeString, LiteralString} from './template.ts';
 
 type GlobalTransformCallback = (operation: string) => Promise<any>;
 type TransformCallback = (page: Page, operation: string, data: any) => Promise<any>;
@@ -44,7 +44,9 @@ export class ContentHandler {
 
   async _register(): Promise<void> {
     // Always add the @render operation.
-    this.addTransformOperation('@render', (page) => this._render(page, '@page').contents);
+    this.addTransformOperation('@render', async (page) => {
+      return (this._render(page, '@page') as LiteralString).contents;
+    });
 
     await this.register();
   }
@@ -121,7 +123,7 @@ export class ContentHandler {
   }
 
   // Render
-  _render(page: Page, variant: string, data?: any): string {
+  _render(page: Page, variant: string, data?: any): TemplateResult {
     if(this.renderVariants.has(variant)) {
       let callback = this.renderVariants.get(variant)!;
       return templateToUnsafeString(callback.call(this, page, variant, data));
@@ -216,7 +218,7 @@ export class ContentHandlerWrangler {
   }
 
   get(handlerName: string): ContentHandler {
-    return this.handlers.get(handlerName);
+    return this.handlers.get(handlerName)!;
   }
 
   async remove(handlerName: string) {

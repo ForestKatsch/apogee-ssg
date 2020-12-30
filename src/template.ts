@@ -8,11 +8,11 @@ export function escapeHTML(safe: string) {
     .replace(/'/g, '&#039;');
 };
 
-type LiteralString = {_literal: true, contents: string};
+export type LiteralString = {_literal: true, contents: string};
 
-type HTMLTemplateItem = null | undefined | number | string | LiteralString | HTMLTemplate;
+export type HTMLTemplateItem = null | undefined | number | string | LiteralString | HTMLTemplate;
 
-class HTMLTemplate {
+export class HTMLTemplate {
   items: HTMLTemplateItem[] = [];
 
   push(item: HTMLTemplateItem) {
@@ -67,6 +67,6 @@ export function templateToString(template: TemplateResult): string {
   }
 }
 
-export function templateToUnsafeString(template: TemplateResult): string {
+export function templateToUnsafeString(template: TemplateResult): LiteralString {
   return unsafe(templateToString(template));
 }
