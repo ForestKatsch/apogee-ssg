@@ -138,7 +138,8 @@ export class Site {
                       return 0;
                     }
                   })
-                  .filter((page) => !page.meta.static);
+                  .filter((page) => !page.meta.static)
+                  .filter((page) => !page.meta.draft);
 
     if(criteria) {
       if(criteria.include) {
@@ -257,6 +258,15 @@ export class Site {
   // `contentFilename` here is relative to `contentRoot` already.
   createPageFromFilename(contentFilename: string, handler: ContentHandler): Page {
     return this.createPage(this.getPathFromFilename(contentFilename), handler, contentFilename);
+  }
+
+  // Returns an absolute URL, including the site URL prefix. `filename` must be an absolute output-relative path already.
+  link(filename: string | Page): string {
+    if(filename instanceof Page) {
+      filename = filename.path;
+    }
+
+    return this.config.site.url + filename.replace(/^\//, '');
   }
 
   // Given a content filename relative to `contentRoot`, returns the output path.

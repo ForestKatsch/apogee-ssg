@@ -186,14 +186,14 @@ export class Page {
       filename = filename.path;
     }
 
+    if(absolute) {
+      return this.site.link(filename);
+    }
+
     let pagePath = path.dirname(this.absoluteOutputPath);
     let staticPath = filename;
 
     //console.log(pagePath, staticPath, path.relative(pagePath, staticPath));
-
-    if(absolute) {
-      return this.site.config.site.url + filename.replace(/^\//, '');
-    }
 
     return path.relative(pagePath, staticPath);
   }
@@ -248,6 +248,7 @@ export class Page {
     if(!this.meta.title) {
       this.site.log.warn(`page '${this.sourcePath}' has no title`);
     }
+
     await this.site.outputPage(this);
   }
   
