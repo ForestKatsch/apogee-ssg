@@ -48,6 +48,7 @@ const DEFAULT_METADATA: PageMetadata = {
 
 export type PageCriteriaFilter = {
   tags: string[],
+  category?: boolean,
   allTags?: boolean,
 };
 
@@ -86,6 +87,10 @@ export class Page {
 
   get title(): string {
     return this.meta.title;
+  }
+
+  set title(newTitle: string) {
+    this._meta.title = newTitle;
   }
 
   get tags(): string[] {
@@ -136,7 +141,41 @@ export class Page {
 
   // Matches if any filter matches.
   matchesFilter(filter: PageCriteriaFilter, all = false): boolean {
+    let matchedTags: boolean | null = this.matchesFilterTags(filter, all);
+    let matchedCategory: boolean | null = filter.category ? this.meta.category === filter.category : null;
 
+    let allMatched = true;
+    let someMatched = false;
+
+    const checkMatch = (value: boolean | null) => {
+      if(value === null) {
+        return;
+      }
+
+      if(!value) {
+        allMatched = false;
+      }
+
+      if(value) {
+        someMatched = true;
+      }
+    };
+
+    checkMatch(matchedTags);
+    checkMatch(matchedCategory);
+
+    if(all) {
+      return allMatched;
+    } else {
+      return someMatched;
+    }
+  }
+
+  matchesFilterTags(filter: PageCriteriaFilter, all = false): boolean | null {
+    if(!filter.tags) {
+      return null;
+    }
+    
     let allMatched = true;
     let someMatched = false;
 
@@ -149,15 +188,11 @@ export class Page {
       allMatched = false;
     }
 
-    if(filter.tags.indexOf('sn8') >= 0) {
-      //this.site.log.vis(`we have tags ${this.tags.join(',')}; filter ${JSON.stringify(filter)}; matches some: ${someMatched}, all: ${allMatched}`);
-    }
-
     if(all) {
       return allMatched;
+    } else {
+      return someMatched;
     }
-
-    return someMatched;
   }
 
   // Returns the filename of the metadata file.
