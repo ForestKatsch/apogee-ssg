@@ -20,7 +20,7 @@ export class ContentHandler {
   name: string;
 
   // Extra metadata that's automatically set on every page.
-  meta: {[key: string]: string} = {};
+  meta: {[key: string]: any} = {};
 
   // A list of extensions that are handled by this handler.
   extensions: string[] = [];
@@ -148,17 +148,17 @@ export abstract class TextContentHandler extends ContentHandler {
   outputFilename: string = 'index.html';
 
   async _ingest(page: Page): Promise<void> {
-    page.contents = await Deno.readTextFile(page.absoluteContentFilename);
+    page.contents = await Deno.readTextFile(page.contentFilename);
 
     page.splitFrontmatter();
   }
   
   async _output(page: Page): Promise<void> {
-    this.site.log.debug(`outputting page '${page.sourcePath}' to '${page.filesystemOutputPath}'`);
+    this.site.log.debug(`outputting page '${page.sourcePath}' to '${page.outputFilename}'`);
 
-    await ensureDir(path.dirname(page.filesystemOutputPath));
+    await ensureDir(path.dirname(page.outputFilename));
 
-    await Deno.writeTextFile(page.filesystemOutputPath, page.contents);
+    await Deno.writeTextFile(page.outputFilename, page.contents);
   }
   
 }

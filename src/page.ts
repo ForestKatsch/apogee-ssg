@@ -4,6 +4,8 @@ import * as path from 'https://deno.land/std@0.82.0/path/mod.ts';
 import toml from 'https://cdn.skypack.dev/toml@3.0.0';
 import _ from 'https://cdn.skypack.dev/lodash@4.17.19';
 
+import {OutputPath, ContentPath, StaticPath} from './path.ts';
+
 import {ApogeeError} from './error.ts';
 
 import {ContentHandler} from './handler.ts';
@@ -45,7 +47,8 @@ const DEFAULT_METADATA: PageMetadata = {
 };
 
 export type PageCriteriaFilter = {
-  tags: string[]
+  tags: string[],
+  allTags?: boolean,
 };
 
 export type PageCriteria = {
@@ -62,12 +65,15 @@ export class Page {
   // The user-facing path of this page, relative to the site root.
   _path: string;
 
-  get path(): string {
+  get path(): OutputPath {
     return this._path;
   }
 
   // This is the metadata, as read from the page.
-  _meta: {[key: string]: any} = {};
+  _meta: {[key: string]: any} = {
+    title: '',
+    tags: [],
+  };
 
   get meta(): PageMetadata {
     return _.merge(
@@ -87,6 +93,10 @@ export class Page {
   }
 
   addTag(tag: string) {
+    if(this.hasTag(tag)) {
+      return;
+    }
+    
     this._meta.tags.push(tag);
   }
 
@@ -97,7 +107,7 @@ export class Page {
   handler: ContentHandler;
 
   // The content-root-relative filename.
-  contentFilename?: string;
+  contentPath?: ContentPath;
 
   // This is an amorphous blob that changes type between `transform` calls.
   // We do not know what it is.
@@ -109,68 +119,82 @@ export class Page {
 
   // `site` is the relevant `Site` instance; `outputPath` is the output root-relative path with a leading '/',
   // and `handler` is the relevant `ContentHandler` responsible for this page.
-  constructor(site: Site, outputPath: string, handler: ContentHandler, contentFilename?: string) {
+  constructor(site: Site, outputPath: string, handler: ContentHandler, contentPath?: string) {
     this.site = site;
     this._path = outputPath;
     this.handler = handler;
-    this.contentFilename = contentFilename;
+    this.contentPath = contentPath;
 
     if(!path.isAbsolute(this.path)) {
       throw new ApogeeError(`page path '${this.path}' must be absolute`);
     }
   }
 
-  // Matches if any filter matches.
-  matchesFilter(filter: PageCriteriaFilter): boolean {
-
-    for(let tag of filter.tags) {
-      if(this.tags.indexOf(tag) >= 0) {
-        return true;
-      }
-    }
-
-    return false;
+  get hasPublishDate(): boolean {
+    return this.meta.publishDate > new Date(3600);
   }
 
-  // Returns `contentFilename` relative to `contentRoot`.
-  get absoluteContentFilename(): string {
-    if(!this.contentFilename) {
-      throw new ApogeeError(`cannot get absolute content filename for page without a content filename set`);
+  // Matches if any filter matches.
+  matchesFilter(filter: PageCriteriaFilter, all = false): boolean {
+
+    let allMatched = true;
+    let someMatched = false;
+
+    for(let tag of filter.tags) {
+      if(this.hasTag(tag)) {
+        someMatched = true;
+        continue;
+      }
+
+      allMatched = false;
     }
-    
-    return path.join(this.site.contentRoot, this.contentFilename);
+
+    if(filter.tags.indexOf('sn8') >= 0) {
+      //this.site.log.vis(`we have tags ${this.tags.join(',')}; filter ${JSON.stringify(filter)}; matches some: ${someMatched}, all: ${allMatched}`);
+    }
+
+    if(all) {
+      return allMatched;
+    }
+
+    return someMatched;
   }
 
   // Returns the filename of the metadata file.
   get absoluteMetadataFilename(): string {
-    if(!this.contentFilename) {
+    if(!this.contentPath) {
       throw new ApogeeError(`cannot get metadata filename for page without a content filename set`);
     }
     
-    return path.join(this.site.contentRoot, this.contentFilename + '.toml');
+    return path.join(this.site.contentRoot, this.contentPath + '.toml');
   }
 
   // A path, suitable for use in log messages.
   get sourcePath(): string {
-    return this.contentFilename ?? this.path;
+    return this.contentPath ?? this.path;
+  }
+
+  // Returns the absolute filesystem-based filename for the content path of this page.
+  get contentFilename(): string {
+    return path.join(this.site.contentRoot, this.contentPath);
   }
 
   // Returns the absolute output path of this file itself relative to outputRoot.
   // For a page with a path `falcon9`, this would be `falcon9/index.html`.
-  get absoluteOutputPath(): string {
+  get outputPath(): string {
     return path.join(this.path, 'index.html');
   }
 
   // Returns the filesystem output path.
   //
   // For a page with a path `falcon9`, this would be `$OUTPUT_ROOT/falcon9/index.html`.
-  get filesystemOutputPath(): string {
-    return path.join(this.site.outputRoot, this.absoluteOutputPath);
+  get outputFilename(): string {
+    return path.join(this.site.outputRoot, this.outputPath);
   }
 
-  // Given a path relative to the static root, returns the path relative to this page.
+  // Given a path relative to the static root, returns the output path relative to this page.
   static(filename: string): string {
-    let pagePath = path.join('/', path.dirname(this.absoluteOutputPath));
+    let pagePath = path.join('/', path.dirname(this.outputPath));
     let staticPath = path.join('/', path.relative(this.site.outputRoot, this.site.staticOutputRoot), filename);
 
     // Force static files to be not cached across compiles.
@@ -179,7 +203,7 @@ export class Page {
     return path.relative(pagePath, staticPath) + `?gen=${Math.round(Date.now() / 1000)}`;
   }
 
-  // Given a path relative to the content root, returns the path relative to this page.
+  // Given a content path relative to the content root (if prefixed with '/'), returns the path relative to this page.
   link(filename: string | Page, absolute: boolean = false): string {
 
     if(filename instanceof Page) {
@@ -190,8 +214,8 @@ export class Page {
       return this.site.link(filename);
     }
 
-    let pagePath = path.dirname(this.absoluteOutputPath);
-    let staticPath = filename;
+    let pagePath = path.dirname(this.outputPath);
+    let staticPath = filename as string;
 
     //console.log(pagePath, staticPath, path.relative(pagePath, staticPath));
 
@@ -202,7 +226,7 @@ export class Page {
   splitFrontmatter() {
     let [meta, contents] = this.contents.split('\n+++\n', 2);
 
-    this.contents = contents ?? '';
+    this.contents = contents;
     
     this.parseMeta(meta);
   }
@@ -210,6 +234,10 @@ export class Page {
   parseMeta(meta: string) {
     try {
       this._meta = toml.parse(meta);
+      
+      if(!this._meta.tags) {
+        this._meta.tags = [];
+      }
     } catch(err) {
       throw new ApogeeError(`could not parse metadata for page '${this.sourcePath}'; toml error at [${err.line}:${err.column}]: ${err.message}`);
     }

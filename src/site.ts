@@ -128,6 +128,7 @@ export class Site {
 
   // Returns a list of pages that match `criteria`.
   getPages(criteria?: PageCriteria): Page[] {
+      
     let pages = [...this.pages.values()]
                   .sort((a, b) => {
                     if(a.meta.publishDate.getTime() < b.meta.publishDate.getTime()) {
@@ -138,32 +139,45 @@ export class Site {
                       return 0;
                     }
                   })
+                  .filter((page) => !!page)
                   .filter((page) => !page.meta.static)
                   .filter((page) => !page.meta.draft);
 
     if(criteria) {
       if(criteria.include) {
-        pages = pages.filter((page) => page.matchesFilter(criteria.include!));
+        pages = pages.filter((page) => page.matchesFilter(criteria.include!, criteria.include!.allTags ?? true));
       }
       
       if(criteria.exclude) {
-        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude!));
+        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude!, criteria.include!.allTags ?? false));
       }
+      
     }
-    
+
     return pages;
   }
 
-  getPage(path: string): Page {
-    if(!this.pages.has(path)) {
-      throw new ApogeeError(`no page with path '${path}'`);
+  getPage(outputPath: string): Page {
+    if(!this.pages.has(outputPath)) {
+      let error = `no page with path '${outputPath}'`
+
+      if(path.extname(outputPath)) {
+        error += `: did you mean to remove the extension?`;
+      }
+      
+      throw new ApogeeError(error);
     }
     
-    return this.pages.get(path)!;
+    return this.pages.get(outputPath)!;
   }
 
-  getPageFrom(page: Page, pagePath: string): Page {
-    return this.getPage(path.resolve(path.join(page.path, '/'), pagePath));
+  // Given a page from and a content path, returns the page.
+  getPageFrom(page: Page, contentPath: string): Page {
+    if(!page.contentPath) {
+      throw new ApogeeError(`cannot get page from relative path if source page '${page.sourcePath}' does not have a content path`);
+    }
+    
+    return this.getPage(path.resolve(path.dirname(page.contentPath), contentPath));
   }
 
   getHandler(handlerName: string): ContentHandler {
@@ -255,16 +269,18 @@ export class Site {
     this.pages.clear();
   }
 
-  // `contentFilename` here is relative to `contentRoot` already.
-  createPageFromFilename(contentFilename: string, handler: ContentHandler): Page {
-    return this.createPage(this.getPathFromFilename(contentFilename), handler, contentFilename);
+  // `contentPath` here is relative to `contentRoot` already.
+  createPageFromFilename(contentPath: string, handler: ContentHandler): Page {
+    return this.createPage(this.getPathFromFilename(contentPath), handler, contentPath);
   }
 
   // Returns an absolute URL, including the site URL prefix. `filename` must be an absolute output-relative path already.
   link(filename: string | Page): string {
     if(filename instanceof Page) {
-      filename = filename.path;
+      filename = filename.path.path;
     }
+
+    filename = filename as string;
 
     return this.config.site.url + filename.replace(/^\//, '');
   }
@@ -272,8 +288,8 @@ export class Site {
   // Given a content filename relative to `contentRoot`, returns the output path.
   //
   // For example, 'index.md' returns '/', and 'foo/bar/baz.gif' would return 'foo/bar/baz'.
-  getPathFromFilename(contentFilename: string) {
-    let p = path.parse(contentFilename);
+  getPathFromFilename(contentPath: string) {
+    let p = path.parse(contentPath);
     
     if(p.name === 'index') {
       return path.join('/', p.dir);
@@ -282,12 +298,12 @@ export class Site {
     }
   }
 
-  createPage(outputPath: string, handler: ContentHandler, contentFilename?: string): Page {
+  createPage(outputPath: string, handler: ContentHandler, contentPath?: string): Page {
     if(this.pages.has(outputPath)) {
       throw new ApogeeError(`cannot add duplicate page '${outputPath}'`);
     }
     
-    let page = new Page(this, outputPath, handler, contentFilename);
+    let page = new Page(this, outputPath, handler, contentPath);
 
     this.pages.set(page.path, page);
 
@@ -327,6 +343,13 @@ export class Site {
     const files: string[] = [];
 
     for await (let entry of walk(rootDirectory, { includeDirs: false })) {
+      
+      // TODO: oh jesus this is absolutely horrible do not do this ever
+      // this must be fixed.
+      if(entry.path.indexOf('/_') >= 0) {
+        continue;
+      }
+      
       files.push(entry.path);
     }
 
@@ -417,12 +440,16 @@ export class Site {
       return;
     }
 
+    this.log.info(`Running transform operation ${operation}...`);
+
     // Run the pre transforms.
     await this.handlers.forEach((handler) => handler._transformGlobal(operation + '-pre'));
 
     // Transform operations are run on all pages in parallel, one operation at a time.
     let tasks = [...this.pages.values()].map((page) => page.transform(operation));
 
+    await this.handlers.forEach((handler) => handler._transformGlobal(operation));
+    
     // And run our post transforms.
     await this.handlers.forEach((handler) => handler._transformGlobal(operation + '-post'));
 
