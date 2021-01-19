@@ -145,7 +145,6 @@ export class Page {
     let matchedCategory: boolean | null = filter.category ? this.meta.category === filter.category : null;
 
     let allMatched = true;
-    let someMatched = false;
 
     const checkMatch = (value: boolean | null) => {
       if(value === null) {
@@ -155,20 +154,12 @@ export class Page {
       if(!value) {
         allMatched = false;
       }
-
-      if(value) {
-        someMatched = true;
-      }
     };
 
     checkMatch(matchedTags);
     checkMatch(matchedCategory);
 
-    if(all) {
-      return allMatched;
-    } else {
-      return someMatched;
-    }
+    return allMatched;
   }
 
   matchesFilterTags(filter: PageCriteriaFilter, all = false): boolean | null {

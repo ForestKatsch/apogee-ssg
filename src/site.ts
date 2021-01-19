@@ -52,6 +52,43 @@ export type Config = {
   }
 }
 
+// Calls the given function once for each item in the array, and returns a completed promise when all promises are resolved or rejected.
+async function callConcurrent(array: any[], fn: Function, maxConcurrent = 3): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let currentElement = 0;
+    let completed = 0;
+
+    if(array.length === 0) {
+      resolve();
+      return;
+    }
+
+    const runNext = async (): Promise<any> => {
+      if(currentElement === array.length) {
+        
+        if(completed === array.length) {
+          resolve();
+        }
+        
+        return;
+      }
+      
+      let element = array[currentElement++];
+
+      await fn(element);
+
+      completed += 1;
+
+      runNext();
+    };
+
+    // Kickstart
+    for(let i=0; i<maxConcurrent; i++) {
+      runNext();
+    }
+  });
+}
+
 // # Site
 
 export class Site {
@@ -149,16 +186,19 @@ export class Site {
       }
       
       if(criteria.exclude) {
-        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude!, criteria.include!.allTags ?? false));
+        pages = pages.filter((page) => !page.matchesFilter(criteria.exclude!, criteria.exclude!.allTags ?? false));
       }
-      
     }
 
     return pages;
   }
 
+  hasPage(outputPath: string): boolean {
+    return this.pages.has(outputPath);
+  }
+
   getPage(outputPath: string): Page {
-    if(!this.pages.has(outputPath)) {
+    if(!this.hasPage(outputPath)) {
       let error = `no page with path '${outputPath}'`
 
       if(path.extname(outputPath)) {
@@ -299,7 +339,7 @@ export class Site {
   }
 
   createPage(outputPath: string, handler: ContentHandler, contentPath?: string): Page {
-    if(this.pages.has(outputPath)) {
+    if(this.hasPage(outputPath)) {
       throw new ApogeeError(`cannot add duplicate page '${outputPath}'`);
     }
     
@@ -393,9 +433,7 @@ export class Site {
 
   // Ingest all pages.
   async ingest() {
-    let tasks = [...this.pages.values()].map((page) => page.ingest());
-
-    await Promise.all(tasks);
+    await callConcurrent([...this.pages.values()], (page: Page) => page.ingest());
   }
 
   //
@@ -446,15 +484,16 @@ export class Site {
     await this.handlers.forEach((handler) => handler._transformGlobal(operation + '-pre'));
 
     // Transform operations are run on all pages in parallel, one operation at a time.
-    let tasks = [...this.pages.values()].map((page) => page.transform(operation));
+    //let tasks = [...this.pages.values()].map((page) => page.transform(operation));
+
+    await callConcurrent([...this.pages.values()], (page: Page) => page.transform(operation));
 
     await this.handlers.forEach((handler) => handler._transformGlobal(operation));
     
     // And run our post transforms.
     await this.handlers.forEach((handler) => handler._transformGlobal(operation + '-post'));
 
-    await Promise.all(tasks);
-
+    //await Promise.all(tasks);
   }
 
   //
@@ -470,9 +509,7 @@ export class Site {
   }
 
   async output() {
-    let tasks = [...this.pages.values()].map((page) => page.output());
-
-    await Promise.all(tasks);
+    await callConcurrent([...this.pages.values()], (page: Page) => page.output());
   }
 
 }
