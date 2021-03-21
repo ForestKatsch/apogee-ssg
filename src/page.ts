@@ -48,7 +48,8 @@ const DEFAULT_METADATA: PageMetadata = {
 
 export type PageCriteriaFilter = {
   tags: string[],
-  category?: boolean,
+  category?: string,
+  categories?: string[],
   allTags?: boolean,
 };
 
@@ -143,23 +144,25 @@ export class Page {
   matchesFilter(filter: PageCriteriaFilter, all = false): boolean {
     let matchedTags: boolean | null = this.matchesFilterTags(filter, all);
     let matchedCategory: boolean | null = filter.category ? this.meta.category === filter.category : null;
+    let matchedCategories: boolean | null = filter.categories ? filter.categories.indexOf(this.meta.category) >= 0 : null;
 
-    let allMatched = true;
-
+    let someMatched = false;
+    
     const checkMatch = (value: boolean | null) => {
       if(value === null) {
         return;
       }
 
-      if(!value) {
-        allMatched = false;
+      if(value) {
+        someMatched = true;
       }
     };
 
     checkMatch(matchedTags);
     checkMatch(matchedCategory);
+    checkMatch(matchedCategories);
 
-    return allMatched;
+    return someMatched;
   }
 
   matchesFilterTags(filter: PageCriteriaFilter, all = false): boolean | null {
@@ -226,7 +229,7 @@ export class Page {
     // Force static files to be not cached across compiles.
     // This is BAD. Don't do this.
     // TODO: fix this.
-    return path.relative(pagePath, staticPath) + `?gen=${Math.round(Date.now() / 1000)}`;
+    return path.relative(pagePath, staticPath);// + `?gen=${Math.round(Date.now() / 1000)}`;
   }
 
   // Given a content path relative to the content root (if prefixed with '/'), returns the path relative to this page.
